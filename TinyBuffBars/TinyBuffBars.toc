@@ -1,0 +1,14 @@
+## Interface: 120100
+## Title: Tiny|cFF3FA9F5BuffBars|r
+## Notes: |cFF00FF00|nPlayer buffs, debuffs and weapon buffs as stacked bars|r
+## Author: mixMugz (a.k.a. Муади-Ревущийфьорд)
+## Category: Buffs & Debuffs
+## Version: 1.0.0
+## SavedVariables: TinyBuffBarsDB
+## OptionalDeps: ElvUI-media, ElvUI, LibSharedMedia-3.0
+
+## X-NOTE: The folder around this file must keep the name "TinyBuffBars"
+## X-NOTE: Verify Interface version via: /dump select(4, GetBuildInfo())
+
+TinyBuffBars.xml
+TinyBuffBars.lua

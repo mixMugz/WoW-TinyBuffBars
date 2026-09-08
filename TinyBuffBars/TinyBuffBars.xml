@@ -1,0 +1,100 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+
+	<!--
+		One bar. Combined by the client with CustomAuraButtonTemplate, so the
+		frame type is AuraButton (a Button) and every region below must be a
+		descendant of it - ValidateInboundScriptObject rejects anything else.
+
+		Three stacked frames, lowest first: Back holds the half-transparent
+		backing, Bar carries the coloured fill, Text sits over both.
+
+		Bar is a StatusBar whose own texture is invisible. It exists only to be
+		driven by ELAPSED time with reverse fill, so its texture's left edge
+		tracks where the remaining time ends. Fill is anchored from the bar's
+		left edge to that moving edge, which is what actually paints the colour.
+
+		The indirection buys the one case a plain fill cannot do: a permanent
+		aura has zero elapsed time, so the reverse fill has zero width pinned to
+		the right, its left edge lands on the bar's right edge, and Fill spans
+		the whole width. A bar driven directly by remaining time reads zero for
+		the same aura and renders empty instead.
+
+		Back and Text are frames rather than layers of the button for the same
+		reason: a texture's SetAlpha is overridden by the alpha of any later
+		SetVertexColor, and the client sets one of its own on the dispel-tinted
+		block. A frame's alpha cannot be overridden that way, and the text has
+		to be outside anything carrying an alpha at all.
+
+		Name and Time sit in their own frame stacked over the bar, not inside it
+		and not on the button's own layers. Inside the bar they would inherit
+		its alpha and fade with it; on the button's layers they would be buried,
+		because a child frame draws above its parent's layers. A sibling frame
+		with a higher level is the only place that is both above the bar and
+		unaffected by its alpha.
+
+		Time is declared before Name because Name anchors to it, and XML anchor
+		relativeKeys cannot resolve forward references.
+	-->
+	<Button name="TinyBuffBarsBarTemplate" virtual="true">
+		<Size x="220" y="16"/>
+		<Layers>
+			<Layer level="ARTWORK">
+				<Texture parentKey="Icon">
+					<Size x="14" y="14"/>
+					<Anchors>
+						<Anchor point="LEFT" x="1" y="0"/>
+					</Anchors>
+					<TexCoords left="0.08" right="0.92" top="0.08" bottom="0.92"/>
+				</Texture>
+			</Layer>
+		</Layers>
+		<Frames>
+			<Frame parentKey="Back">
+				<Anchors>
+					<Anchor point="TOPLEFT" x="16" y="0"/>
+					<Anchor point="BOTTOMRIGHT" x="0" y="0"/>
+				</Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<Texture parentKey="Track" setAllPoints="true"/>
+					</Layer>
+				</Layers>
+			</Frame>
+			<StatusBar parentKey="Bar">
+				<Anchors>
+					<Anchor point="TOPLEFT" x="16" y="0"/>
+					<Anchor point="BOTTOMRIGHT" x="0" y="0"/>
+				</Anchors>
+				<BarTexture file="Interface\Buttons\WHITE8X8"/>
+				<Layers>
+					<Layer level="OVERLAY">
+						<Texture parentKey="Fill"/>
+					</Layer>
+				</Layers>
+			</StatusBar>
+			<Frame parentKey="Text">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeKey="$parent.Bar" relativePoint="TOPLEFT"/>
+					<Anchor point="BOTTOMRIGHT" relativeKey="$parent.Bar" relativePoint="BOTTOMRIGHT"/>
+				</Anchors>
+				<Layers>
+					<Layer level="OVERLAY">
+						<FontString parentKey="Time" inherits="GameFontHighlightSmall" justifyH="RIGHT">
+							<Anchors>
+								<Anchor point="TOPRIGHT" x="-3" y="0"/>
+								<Anchor point="BOTTOMRIGHT" x="-3" y="0"/>
+							</Anchors>
+						</FontString>
+						<FontString parentKey="Name" inherits="GameFontHighlightSmall" justifyH="LEFT" wordwrap="false">
+							<Anchors>
+								<Anchor point="TOPLEFT" x="3" y="0"/>
+								<Anchor point="BOTTOMRIGHT" relativeKey="$parent.Time" relativePoint="BOTTOMLEFT" x="-4" y="0"/>
+							</Anchors>
+						</FontString>
+					</Layer>
+				</Layers>
+			</Frame>
+		</Frames>
+	</Button>
+
+</Ui>
