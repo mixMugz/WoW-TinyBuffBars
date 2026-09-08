@@ -30,11 +30,13 @@ exposes nothing finer.
 | `/tbb reset` | back to the centre of the screen |
 | `/tbb width N` / `height N` | bar size, 220x16 default, needs `/reload` |
 | `/tbb alpha N` | backing transparency, 0 to 1 |
+| `/tbb blizz` | show or hide Blizzard's own buff frames |
 | `/tbb track` | what the client reports as tracking |
 | `/tbb forget` | drop the learned buff classification |
 
 Unlocked by default. The handle lies over the top row, so locking it moves
-nothing.
+nothing. Blizzard's buff and debuff frames are hidden by default — weapon
+enchants live inside theirs, so those go too.
 
 ## One thing worth knowing
 

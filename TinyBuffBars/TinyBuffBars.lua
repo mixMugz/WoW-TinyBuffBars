@@ -68,7 +68,7 @@ local ADDON_NAME = ...
 
 -- Bumped on every change worth telling apart in game. /tbb prints it, so
 -- "is the client running what I just edited" is one command, not guesswork.
-local VERSION = "3.2"
+local VERSION = "3.3"
 
 local BAR_TEMPLATE = "TinyBuffBarsBarTemplate"
 local BAR_GAP      = 1   -- between bars inside a block
@@ -145,6 +145,31 @@ local function CreateDurationFormatter()
 	formatter:SetDesiredUnitCount(2)
 
 	return formatter
+end
+
+-- Blizzard's own buff display is an Edit Mode system, so Hide() does not stick -
+-- the manager shows it again. Reparenting to a frame that is never shown keeps
+-- it away without fighting anything, and putting it back is the same call.
+-- Events are left registered on purpose: the frame costs almost nothing while
+-- invisible, and this way restoring it needs no repair. Temporary weapon
+-- enchants live inside BuffFrame, so they go with it.
+local hiddenParent
+
+local function SetBlizzardAurasShown(shown)
+	if not hiddenParent then
+		hiddenParent = CreateFrame("Frame")
+		hiddenParent:Hide()
+	end
+
+	local parent = shown and UIParent or hiddenParent
+
+	if BuffFrame then
+		BuffFrame:SetParent(parent)
+	end
+
+	if DebuffFrame then
+		DebuffFrame:SetParent(parent)
+	end
 end
 
 local function Print(msg)
@@ -708,6 +733,12 @@ SlashCmdList.TINYBUFFBARS = function(msg)
 		end
 
 		Print(("backing alpha = %.2f"):format(value))
+	elseif msg == "blizz" then
+		TinyBuffBarsDB.hideBlizzard = not TinyBuffBarsDB.hideBlizzard
+		SetBlizzardAurasShown(not TinyBuffBarsDB.hideBlizzard)
+		Print(TinyBuffBarsDB.hideBlizzard
+			and "Blizzard buff and debuff frames hidden."
+			or "Blizzard buff and debuff frames restored.")
 	elseif msg == "track" then
 		-- What the client itself reports as tracking, plus whether the minimap
 		-- menu we borrow is reachable.
@@ -742,11 +773,12 @@ SlashCmdList.TINYBUFFBARS = function(msg)
 
 		Print(("version %s, %s"):format(VERSION,
 			TinyBuffBarsDB.locked and "|cFFFF6060locked|r - /tbb unlock to move it" or "unlocked"))
-		Print("/tbb unlock | lock | reset | forget | track | width N | height N | alpha N")
+		Print("/tbb unlock | lock | reset | forget | track | blizz | width N | height N | alpha N")
 		Print(("bar %dx%d, backing alpha %.2f, texture %s")
 			:format(barWidth, barHeight, barAlpha,
 				barTexture == FALLBACK_TEXTURE and "default" or "ElvUI Norm"))
-		Print(("timed buffs learned: %d"):format(learned))
+		Print(("timed buffs learned: %d, blizzard frames %s")
+			:format(learned, TinyBuffBarsDB.hideBlizzard and "hidden" or "shown"))
 	end
 end
 
@@ -776,6 +808,13 @@ events:SetScript("OnEvent", function(self, event, arg1)
 			TinyBuffBarsDB.locked = false
 		end
 
+		-- Hidden by default: the whole point of the addon is to replace them.
+		if TinyBuffBarsDB.hideBlizzard == nil then
+			TinyBuffBarsDB.hideBlizzard = true
+		end
+
+		SetBlizzardAurasShown(not TinyBuffBarsDB.hideBlizzard)
+
 		BuildAnchor()
 		tooltipAnchor = ComputeTooltipAnchor()
 		BuildTrackingButton()
@@ -794,6 +833,7 @@ events:SetScript("OnEvent", function(self, event, arg1)
 		or event == "PLAYER_ENTERING_WORLD" then
 		UpdateTrackingButton()
 		ApplyTooltipAnchor()
+		SetBlizzardAurasShown(not TinyBuffBarsDB.hideBlizzard)
 		Classify()
 	else
 		Classify()
