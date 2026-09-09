@@ -140,9 +140,13 @@ local TOOLTIP_ANCHOR = {
 }
 
 -- The shift, in bar heights. Positive Y is up, the same convention frame
--- anchors use - Blizzard pass a positive Y with ANCHOR_BOTTOM* to pull a
+-- anchors use. Neither source says so - which way a tooltip offset points is
+-- the C side's, and nothing in wow-ui-source states it - so this was read off
+-- Blizzard's own call sites, where a positive Y with ANCHOR_BOTTOM* pulls a
 -- tooltip back up towards its owner in InstanceDifficulty, ArtifactUI and
--- CovenantRenown alike.
+-- CovenantRenown alike, and then measured in game on 2026-09-09: bars in the
+-- top half, tooltip aligned to the row's top edge, which is what these signs
+-- produce. Confirmed, not inferred - do not re-derive it.
 local TOOLTIP_SHIFT = { top = 1, bottom = -1 }
 
 -- Stands in before the anchor exists and whenever its geometry cannot be read.
