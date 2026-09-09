@@ -68,7 +68,7 @@ local ADDON_NAME = ...
 
 -- Bumped on every change worth telling apart in game. /tbb prints it, so
 -- "is the client running what I just edited" is one command, not guesswork.
-local VERSION = "3.3"
+local VERSION = "3.4"
 
 local BAR_TEMPLATE = "TinyBuffBarsBarTemplate"
 local BAR_GAP      = 1   -- between bars inside a block
@@ -382,6 +382,21 @@ local function MakeInitializer(spec)
 		frame:SetIcon(frame.Icon)
 		frame:SetSpellName(frame.Text.Name)
 		frame:SetTooltipAnchorPoint(tooltipAnchor)
+
+		-- Stack count over the icon. Set explicitly rather than left to the
+		-- font, the same reason the tracking label's colour is: an inherited
+		-- colour is not guaranteed to stay white across font changes. The
+		-- outline is the font's own and is what keeps a digit readable over
+		-- whatever art the icon happens to carry.
+		frame.Count:SetTextColor(1, 1, 1, 1)
+		frame.Count:SetShadowColor(0, 0, 0, 0)
+		frame.Count:SetShadowOffset(0, 0)
+
+		-- With no formatter the client writes the count only above one
+		-- application and leaves the string empty otherwise, which is exactly
+		-- the rule we want - so there is nothing to compare on our side, and
+		-- nothing that could raise on a secret value.
+		frame:SetApplicationCount(frame.Count, {})
 
 		if spec.cancel then
 			-- The token has to carry Down or Up: CanCancelAuraOnClick builds it

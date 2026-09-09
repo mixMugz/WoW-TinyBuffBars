@@ -15,6 +15,7 @@ poison green, everything else red. Bleeds land in "everything else"; the client
 exposes nothing finer.
 
 - **Right click** cancels a buff or a weapon buff. Debuffs cannot be cancelled.
+- Stacks show in the icon's bottom right corner, from two upwards.
 - **Click the tracking row** for the minimap's tracking menu.
 - Blocks with timers sort by remaining time, longest first.
 - Durations use two units: `1h 15m`, not `75m`.

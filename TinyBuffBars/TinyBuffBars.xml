@@ -34,6 +34,17 @@
 
 		Time is declared before Name because Name anchors to it, and XML anchor
 		relativeKeys cannot resolve forward references.
+
+		Count is the stack count, in the icon's bottom right corner. It is a
+		layer of the button rather than a region of Text: Text starts where the
+		bar does, at x=16, and the icon sits to the left of that. OVERLAY puts
+		it above the icon's ARTWORK, and the bar's child frames never reach
+		this far left, so nothing can bury it.
+
+		It hangs a pixel past the corner rather than sitting on it. A
+		FontString is measured by the font's metrics, not by its ink, so a
+		digit anchored flush floats above the edge by the descender's worth of
+		empty box; the offset is that compensated, not padding.
 	-->
 	<Button name="TinyBuffBarsBarTemplate" virtual="true">
 		<Size x="220" y="16"/>
@@ -46,6 +57,27 @@
 					</Anchors>
 					<TexCoords left="0.08" right="0.92" top="0.08" bottom="0.92"/>
 				</Texture>
+			</Layer>
+			<Layer level="OVERLAY">
+				<!--
+					NumberFontNormalSmall is ARIALN with outline="NORMAL", the
+					thin all-round outline, and it carries no shadow. Colour is
+					set in Lua for the same reason the tracking label's is.
+				-->
+				<FontString parentKey="Count" inherits="NumberFontNormalSmall" justifyH="RIGHT">
+					<Anchors>
+						<Anchor point="BOTTOMRIGHT" relativeKey="$parent.Icon" x="1" y="-1"/>
+					</Anchors>
+					<!--
+						The inherited 12 fills a 14x14 icon end to end. Only the
+						height is overridden here, so the font file and its
+						outline flag both survive - including the ones the other
+						locales resolve to.
+					-->
+					<FontHeight>
+						<AbsValue val="10"/>
+					</FontHeight>
+				</FontString>
 			</Layer>
 		</Layers>
 		<Frames>
