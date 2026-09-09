@@ -19,7 +19,9 @@ exposes nothing finer.
 - **Click the tracking row** for the minimap's tracking menu.
 - Blocks with timers sort by remaining time, longest first.
 - Durations use two units: `1h 15m`, not `75m`.
-- Tooltips open away from the screen edge the bars sit against.
+- Tooltips open beside the row, away from the screen edges the bars sit
+  against: to the right on the left half, and growing down from the row's top
+  edge on the top half — mirrored on each axis.
 - Bar texture is ElvUI Norm when `ElvUI-media` or ElvUI is installed, else flat.
 
 ## Commands

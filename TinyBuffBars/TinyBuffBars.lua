@@ -68,7 +68,7 @@ local ADDON_NAME = ...
 
 -- Bumped on every change worth telling apart in game. /tbb prints it, so
 -- "is the client running what I just edited" is one command, not guesswork.
-local VERSION = "3.4"
+local VERSION = "3.6"
 
 local BAR_TEMPLATE = "TinyBuffBarsBarTemplate"
 local BAR_GAP      = 1   -- between bars inside a block
@@ -114,11 +114,46 @@ local DISPEL_COLOR = {
 	None    = { 0.78, 0.18, 0.18 },
 }
 
+-- Which way a tooltip opens, per quadrant of the screen the bars sit in. The
+-- keys name where the BARS are, the value names where the TOOLTIP goes, so
+-- every entry is the opposite of its own key on both axes.
+--
+-- The names read the way the client means them: ANCHOR_BOTTOMLEFT opens the
+-- tooltip below the owner and to its left. That is also Blizzard's own default
+-- for an aura button, whose frames live in the top right corner - see the
+-- KeyValue in Blizzard_AuraButton.xml.
+--
+-- What is wanted, though, is the tooltip BESIDE the bar rather than under or
+-- over it, aligned top edge to top edge high on the screen and bottom to
+-- bottom low on it, so it always grows away from the nearer edge. No anchor
+-- name says that: the four sideways ones (ANCHOR_LEFT, ANCHOR_RIGHT) are
+-- bottom-aligned only, and the corners put the tooltip past the row entirely.
+--
+-- A corner plus a shift of exactly one bar height does say it. ANCHOR_BOTTOM*
+-- lands the tooltip's top corner on the bar's bottom one; lift it a bar and
+-- that corner sits on the bar's TOP instead, which is the tooltip beside the
+-- row, top-aligned. ANCHOR_TOP* dropped by a bar is the same trick upside
+-- down. The horizontal half of the corner already puts it on the correct side.
+local TOOLTIP_ANCHOR = {
+	top    = { left = "ANCHOR_BOTTOMRIGHT", right = "ANCHOR_BOTTOMLEFT" },
+	bottom = { left = "ANCHOR_TOPRIGHT",    right = "ANCHOR_TOPLEFT" },
+}
+
+-- The shift, in bar heights. Positive Y is up, the same convention frame
+-- anchors use - Blizzard pass a positive Y with ANCHOR_BOTTOM* to pull a
+-- tooltip back up towards its owner in InstanceDifficulty, ArtifactUI and
+-- CovenantRenown alike.
+local TOOLTIP_SHIFT = { top = 1, bottom = -1 }
+
+-- Stands in before the anchor exists and whenever its geometry cannot be read.
+local DEFAULT_TOOLTIP_ANCHOR = TOOLTIP_ANCHOR.top.left
+
 local anchor, handle, container, trackingButton
 local timedSpells = {}
 local durationFormatter
 local enchantFrames = {}
-local tooltipAnchor = "ANCHOR_RIGHT"
+local tooltipAnchor = DEFAULT_TOOLTIP_ANCHOR
+local tooltipOffsetY = 0
 
 -- Every aura group key, in the order they are registered. Used to walk the
 -- frames the container owns when the tooltip side changes.
@@ -218,32 +253,44 @@ local function PermanentExcludes()
 	return excludes
 end
 
--- Tooltips open away from the screen edge the bars sit against: bars on the
--- left half get their tooltip on the right, and the other way round. The side
--- is decided from the anchor, which is our own frame and carries no secret
--- values - the container's own size and the bars' positions do, and are never
--- read here.
+-- Tooltips open away from the screen edges the bars sit against, on both axes:
+-- bars on the left half get their tooltip on the right, bars on the top half
+-- get one that grows downwards, and the other way round in each case. The
+-- quadrant is decided from the anchor, which is our own frame and carries no
+-- secret values - the container's own size and the bars' positions do, and are
+-- never read here.
+--
+-- The anchor is only the top row, and the stack hangs below it. Choosing the
+-- vertical side from where the stack starts rather than from where it ends is
+-- not a shortcut: how far it has grown is one of the secret values, so it is
+-- the only figure available. A tooltip that overshoots anyway is caught by
+-- GameTooltip's own clamping to the screen.
+--
+-- Returns the anchor name and the Y shift that turns it into a side, both of
+-- which every caller passes straight on.
 local function ComputeTooltipAnchor()
 	local left = anchor and anchor:GetLeft()
+	local bottom = anchor and anchor:GetBottom()
 	local screenWidth = UIParent:GetWidth()
+	local screenHeight = UIParent:GetHeight()
 
-	if not left or not screenWidth or screenWidth == 0 then
-		return "ANCHOR_RIGHT"
+	if not left or not bottom or not screenWidth or not screenHeight
+		or screenWidth == 0 or screenHeight == 0 then
+		return DEFAULT_TOOLTIP_ANCHOR, TOOLTIP_SHIFT.top * barHeight
 	end
 
-	if (left + barWidth / 2) < (screenWidth / 2) then
-		return "ANCHOR_RIGHT"
-	end
+	local horizontal = (left + barWidth / 2) < (screenWidth / 2) and "left" or "right"
+	local vertical = (bottom + barHeight / 2) > (screenHeight / 2) and "top" or "bottom"
 
-	return "ANCHOR_LEFT"
+	return TOOLTIP_ANCHOR[vertical][horizontal], TOOLTIP_SHIFT[vertical] * barHeight
 end
 
 -- Push the current side onto every frame already built. New frames pick it up
 -- in initializeFrame instead, because the client creates them in batches
 -- whenever it feels like it.
 local function ApplyTooltipAnchor()
-	local wanted = ComputeTooltipAnchor()
-	tooltipAnchor = wanted
+	local wanted, wantedY = ComputeTooltipAnchor()
+	tooltipAnchor, tooltipOffsetY = wanted, wantedY
 
 	if not container then return end
 
@@ -256,13 +303,13 @@ local function ApplyTooltipAnchor()
 		for i = 1, container:GetAuraGroupFrameCount(groupKey) do
 			local frame = container:GetAuraGroupFrame(groupKey, i)
 			if frame then
-				frame:SetTooltipAnchorPoint(wanted)
+				frame:SetTooltipAnchorPoint(wanted, 0, wantedY)
 			end
 		end
 	end
 
 	for _, frame in ipairs(enchantFrames) do
-		frame:SetTooltipAnchorPoint(wanted)
+		frame:SetTooltipAnchorPoint(wanted, 0, wantedY)
 	end
 end
 
@@ -381,7 +428,7 @@ local function MakeInitializer(spec)
 		-- Icon and name are filled by the client from secret data.
 		frame:SetIcon(frame.Icon)
 		frame:SetSpellName(frame.Text.Name)
-		frame:SetTooltipAnchorPoint(tooltipAnchor)
+		frame:SetTooltipAnchorPoint(tooltipAnchor, 0, tooltipOffsetY)
 
 		-- Stack count over the icon. Set explicitly rather than left to the
 		-- font, the same reason the tracking label's colour is: an inherited
@@ -528,7 +575,7 @@ local function BuildTrackingButton()
 	trackingButton:SetScript("OnEnter", function(self)
 		local names = GetActiveTracking()
 
-		GameTooltip:SetOwner(self, tooltipAnchor)
+		GameTooltip:SetOwner(self, tooltipAnchor, 0, tooltipOffsetY)
 		GameTooltip:AddLine("Tracking")
 
 		if #names > 0 then
@@ -792,8 +839,9 @@ SlashCmdList.TINYBUFFBARS = function(msg)
 		Print(("bar %dx%d, backing alpha %.2f, texture %s")
 			:format(barWidth, barHeight, barAlpha,
 				barTexture == FALLBACK_TEXTURE and "default" or "ElvUI Norm"))
-		Print(("timed buffs learned: %d, blizzard frames %s")
-			:format(learned, TinyBuffBarsDB.hideBlizzard and "hidden" or "shown"))
+		Print(("timed buffs learned: %d, blizzard frames %s, tooltips %s y%+d")
+			:format(learned, TinyBuffBarsDB.hideBlizzard and "hidden" or "shown",
+				tooltipAnchor:gsub("^ANCHOR_", ""):lower(), tooltipOffsetY))
 	end
 end
 
@@ -831,7 +879,7 @@ events:SetScript("OnEvent", function(self, event, arg1)
 		SetBlizzardAurasShown(not TinyBuffBarsDB.hideBlizzard)
 
 		BuildAnchor()
-		tooltipAnchor = ComputeTooltipAnchor()
+		tooltipAnchor, tooltipOffsetY = ComputeTooltipAnchor()
 		BuildTrackingButton()
 		BuildContainer()
 		BuildMouseBlocker(anchor)
